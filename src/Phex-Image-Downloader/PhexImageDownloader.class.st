@@ -4,7 +4,9 @@ Class {
 	#instVars : [
 		'server',
 		'downloads',
-		'directory'
+		'directory',
+		'filename',
+		'linkReuseEnabled'
 	],
 	#classInstVars : [
 		'instance'
@@ -34,13 +36,19 @@ PhexImageDownloader class >> stop [
 	^ instance
 ]
 
-{ #category : 'accessing' }
+{ #category : 'parameters' }
 PhexImageDownloader >> directory: aFilePath [
 
 	directory := aFilePath
 ]
 
-{ #category : 'adding' }
+{ #category : 'parameters' }
+PhexImageDownloader >> disableLinkReuse [
+
+	linkReuseEnabled := false
+]
+
+{ #category : 'private' }
 PhexImageDownloader >> downloaded: aFileName [
 
 	downloads add: aFileName.
@@ -49,7 +57,7 @@ PhexImageDownloader >> downloaded: aFileName [
 	]
 ]
 
-{ #category : 'origins' }
+{ #category : 'accessing' }
 PhexImageDownloader >> downloads [ 
 
 	^ downloads := self registry readStream size <= 0 
@@ -57,34 +65,58 @@ PhexImageDownloader >> downloads [
 		ifFalse: [ (STON fromStream: self registry readStream) asOrderedCollection ]
 ]
 
-{ #category : 'public' }
+{ #category : 'parameters' }
+PhexImageDownloader >> enableLinkReuse [
+
+	linkReuseEnabled := true
+]
+
+{ #category : 'accessing' }
+PhexImageDownloader >> filename [
+
+	^ filename
+]
+
+{ #category : 'private' }
 PhexImageDownloader >> handleRequest: aRequest [
 
 	| fileName fileStream response |
 
-	[
-		fileName := ZnUtils decodeBase64: aRequest uri lastPathSegment.
-		
-		(self downloads includes: fileName) ifTrue: [ ^ ZnResponse noContent ].
-		
-		fileStream := (directory / fileName) asFileReference binaryReadStream.
-
-		response := ZnResponse ok: ((ZnStreamingEntity type: ZnMimeType applicationOctetStream)
-				stream: fileStream;
-				contentLength: fileStream size;
-				yourself).
-		
-		response headers at: 'Content-Disposition:' put: 'attachment; filename="experiment.zip"'.
-
-		self downloaded: fileName.
-		
-		^ response
-	] on: Error do: [ 
+	fileName := [ ZnUtils decodeBase64: aRequest uri lastPathSegment. ] on: Error do: [ 
 		^ ZnResponse noContent 
 	].
+
+	(self isDownloaded: fileName) ifTrue: [ ^ ZnResponse noContent ].
+	
+	fileStream := [  (directory / fileName) asFileReference binaryReadStream ] on: Error do: [ 
+		^ ZnResponse serverError: 'Server failure'
+	].
+	
+	response := ZnResponse ok: (ZnStreamingEntity type: ZnMimeType applicationOctetStream).
+	response stream: fileStream.
+	response contentLength: fileStream size.
+	response headers at: 'Content-Disposition:' put: ('attachment; filename="{1}"' format: { 
+		self filename ifEmpty: [ fileName ]
+	}).
+	self downloaded: fileName.
+
+	^ response
 ]
 
-{ #category : 'registry' }
+{ #category : 'initialization' }
+PhexImageDownloader >> initialize [
+
+	filename := String empty.
+	self disableLinkReuse
+]
+
+{ #category : 'private' }
+PhexImageDownloader >> isDownloaded: aFileName [
+
+	^ self downloads includes: aFileName
+]
+
+{ #category : 'private' }
 PhexImageDownloader >> registry [
 
 	^ (FileLocator imageDirectory / 'downloads.json') 
@@ -92,7 +124,13 @@ PhexImageDownloader >> registry [
 		yourself
 ]
 
-{ #category : 'accessing' }
+{ #category : 'parameters' }
+PhexImageDownloader >> rename: aFileName [
+
+	filename := aFileName
+]
+
+{ #category : 'services' }
 PhexImageDownloader >> start: aPort [
 
 	server := ZnServer on: aPort.
@@ -101,7 +139,7 @@ PhexImageDownloader >> start: aPort [
 
 ]
 
-{ #category : 'accessing' }
+{ #category : 'services' }
 PhexImageDownloader >> stop [
 
 	server stop
