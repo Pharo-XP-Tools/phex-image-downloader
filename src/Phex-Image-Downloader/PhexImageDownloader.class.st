@@ -34,8 +34,14 @@ PhexImageDownloader class >> stop [
 	^ instance
 ]
 
+{ #category : 'accessing' }
+PhexImageDownloader >> directory: aFilePath [
+
+	directory := aFilePath
+]
+
 { #category : 'adding' }
-PhexImageDownloader >> addDownload: aFileName [
+PhexImageDownloader >> downloaded: aFileName [
 
 	downloads add: aFileName.
 	self registry asFileReference writeStreamDo: [ :stream |
@@ -43,20 +49,12 @@ PhexImageDownloader >> addDownload: aFileName [
 	]
 ]
 
-{ #category : 'accessing' }
-PhexImageDownloader >> directory: aFilePath [
-
-	directory := aFilePath
-]
-
 { #category : 'origins' }
 PhexImageDownloader >> downloads [ 
 
-	^ downloads ifNil: [ 
-		downloads := self registry exists 
-			ifTrue: [ (STON fromStream: self registry readStream) asOrderedCollection ]
-			ifFalse: [ OrderedCollection new ]
-	]
+	^ downloads := self registry readStream size <= 0 
+		ifTrue: [ OrderedCollection new ]
+		ifFalse: [ (STON fromStream: self registry readStream) asOrderedCollection ]
 ]
 
 { #category : 'public' }
@@ -78,7 +76,7 @@ PhexImageDownloader >> handleRequest: aRequest [
 		
 		response headers at: 'Content-Disposition:' put: 'attachment; filename="experiment.zip"'.
 
-		self addDownload: fileName.
+		self downloaded: fileName.
 		
 		^ response
 	] on: Error do: [ 
@@ -89,7 +87,9 @@ PhexImageDownloader >> handleRequest: aRequest [
 { #category : 'registry' }
 PhexImageDownloader >> registry [
 
-	^ FileLocator imageDirectory / 'downloads.json'	
+	^ (FileLocator imageDirectory / 'downloads.json') 
+		ensureCreateFile;
+		yourself
 ]
 
 { #category : 'accessing' }
