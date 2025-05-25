@@ -96,7 +96,7 @@ PhexImageDownloader >> disableLinkReuse [
 { #category : 'private' }
 PhexImageDownloader >> downloaded: aFileName [
 
-	linkReuseEnabled ifFalse: [ ^ self ].
+	linkReuseEnabled ifTrue: [ ^ self ].
 
 	downloads add: aFileName.
 	self registry asFileReference writeStreamDo: [ :stream |
@@ -127,7 +127,7 @@ PhexImageDownloader >> filename [
 { #category : 'private' }
 PhexImageDownloader >> handleRequest: aRequest [
 
-	| fileName fileStream response |
+	| fileName fileStream response entity |
 
 	fileName := [ ZnUtils decodeBase64: aRequest uri lastPathSegment. ] on: Error do: [ 
 		^ ZnResponse noContent 
@@ -138,13 +138,16 @@ PhexImageDownloader >> handleRequest: aRequest [
 	fileStream := [  (directory / fileName) asFileReference binaryReadStream ] on: Error do: [ 
 		^ ZnResponse serverError: 'Server failure'
 	].
+
+	entity := ZnStreamingEntity type: ZnMimeType applicationOctetStream.
+	entity stream: fileStream.
+	entity contentLength: fileStream size.
 	
-	response := ZnResponse ok: (ZnStreamingEntity type: ZnMimeType applicationOctetStream).
-	response stream: fileStream.
-	response contentLength: fileStream size.
+	response := ZnResponse ok: entity.
 	response headers at: 'Content-Disposition:' put: ('attachment; filename="{1}"' format: { 
 		self filename ifEmpty: [ fileName ]
 	}).
+	
 	self downloaded: fileName.
 
 	^ response
@@ -160,7 +163,7 @@ PhexImageDownloader >> initialize [
 { #category : 'private' }
 PhexImageDownloader >> isDownloaded: aFileName [
 
-	^ linkReuseEnabled and: [ self downloads includes: aFileName ]
+	^ linkReuseEnabled not and: [ self downloads includes: aFileName ]
 ]
 
 { #category : 'private' }
