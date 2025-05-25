@@ -33,6 +33,14 @@ PhexImageDownloader new
 
 ## Additional information
 
+
+**Link format**
+
+To cope with special characters in filenames, the server expects base64 URIs.  
+For example, `http://localhost:8008/ZXhhbXBsZS1maWxlbmFtZQ==`refers to `http://localhost:8008/example-filename`.
+
+**Link usage**
+
 By default, the server will not enable link reuse.  
 To keep the state of used links it reads and updates the "downloads.json" file, at the root directory of the image.  
 The "downloads.json" file contains the name of files already downloaded.  
