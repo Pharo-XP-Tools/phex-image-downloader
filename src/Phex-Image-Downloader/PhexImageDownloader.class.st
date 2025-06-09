@@ -169,7 +169,7 @@ PhexImageDownloader >> isDownloaded: aFileName [
 { #category : 'private' }
 PhexImageDownloader >> registry [
 
-	^ (FileLocator imageDirectory / 'downloads.json') 
+	^ (directory / 'downloads.json') 
 		ensureCreateFile;
 		yourself
 ]
