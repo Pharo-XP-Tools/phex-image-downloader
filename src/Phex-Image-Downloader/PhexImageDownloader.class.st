@@ -45,13 +45,12 @@ I rely on Zinc-HTTP, in particular `ZnServer` and `ZnClient`.
 "
 Class {
 	#name : 'PhexImageDownloader',
-	#superclass : 'Object',
+	#superclass : 'ZnStaticFileServerDelegate',
 	#instVars : [
 		'server',
 		'downloads',
-		'directory',
-		'filename',
-		'linkReuseEnabled'
+		'linkReuseEnabled',
+		'filename'
 	],
 	#classInstVars : [
 		'instance'
@@ -79,12 +78,6 @@ PhexImageDownloader class >> stop [
 	instance := nil.
 	
 	^ instance
-]
-
-{ #category : 'parameters' }
-PhexImageDownloader >> directory: aFilePath [
-
-	directory := aFilePath
 ]
 
 { #category : 'parameters' }
@@ -127,23 +120,22 @@ PhexImageDownloader >> filename [
 { #category : 'private' }
 PhexImageDownloader >> handleRequest: aRequest [
 
-	| fileName fileStream response entity |
+	| fileName response |
 
-	fileName := [ ZnUtils decodeBase64: aRequest uri lastPathSegment. ] on: Error do: [ 
-		^ ZnResponse noContent 
+	1 to: aRequest uri segments size do: [ :index |
+		| segment | 
+		segment := aRequest uri segments at: index. 
+		aRequest uri segments at: index put: (
+			[ ZnUtils decodeBase64: segment ] on: Error do: [ segment ]
+		) 
 	].
 
-	(self isDownloaded: fileName) ifTrue: [ ^ ZnResponse noContent ].
-	
-	fileStream := [  (directory / fileName) asFileReference binaryReadStream ] on: Error do: [ 
-		^ ZnResponse serverError: 'Server failure'
-	].
+	fileName := self actualFilenameFor: aRequest uri.
 
-	entity := ZnStreamingEntity type: ZnMimeType applicationOctetStream.
-	entity stream: fileStream.
-	entity contentLength: fileStream size.
+	(self isDownloaded: fileName) ifTrue: [ ^ ZnResponse notFound: 'Invalid link' ].
 	
-	response := ZnResponse ok: entity.
+	response := super handleRequest: aRequest.
+	
 	response headers at: 'Content-Disposition:' put: ('attachment; filename="{1}"' format: { 
 		self filename ifEmpty: [ fileName ]
 	}).
@@ -155,6 +147,8 @@ PhexImageDownloader >> handleRequest: aRequest [
 
 { #category : 'initialization' }
 PhexImageDownloader >> initialize [
+
+	super initialize.
 
 	filename := String empty.
 	self disableLinkReuse
