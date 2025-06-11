@@ -130,7 +130,9 @@ PhexImageDownloader >> handleRequest: aRequest [
 		) 
 	].
 
-	fileName := (self actualFilenameFor: aRequest uri) asFileReference basename.
+	fileName := (self actualFilenameFor: aRequest uri) 
+		ifNil: [ ^ ZnResponse noContent ]
+		ifNotNil: [ :f | f asFileReference basename ].
 
 	(self isDownloaded: fileName) ifTrue: [ ^ ZnResponse noContent ].
 	
