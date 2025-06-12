@@ -120,23 +120,27 @@ PhexImageDownloader >> filename [
 { #category : 'private' }
 PhexImageDownloader >> handleRequest: aRequest [
 
-	| fileName response |
+	| request response fileName |
 
-	1 to: aRequest uri segments size do: [ :index |
+	request := aRequest copy.
+	
+	1 to: request uri segments size do: [ :index |
 		| segment | 
-		segment := aRequest uri segments at: index. 
-		aRequest uri segments at: index put: (
+		segment := request uri segments at: index. 
+		request uri segments at: index put: (
 			[ ZnUtils decodeBase64: segment ] on: Error do: [ segment ]
 		) 
 	].
 
-	fileName := (self actualFilenameFor: aRequest uri) 
-		ifNil: [ ^ ZnResponse noContent ]
+	fileName := (self actualFilenameFor: request uri) 
+		ifNil: [ ^ ZnResponse notFound: request uri ]
 		ifNotNil: [ :f | f asFileReference basename ].
 
-	(self isDownloaded: fileName) ifTrue: [ ^ ZnResponse noContent ].
+	(self isDownloaded: fileName) ifTrue: [ 
+		^ ZnResponse notFound: request uri
+	].
 	
-	response := super handleRequest: aRequest.
+	response := super handleRequest: request.
 	
 	response headers at: 'Content-Disposition:' put: ('attachment; filename="{1}"' format: { 
 		self filename ifEmpty: [ fileName ]
