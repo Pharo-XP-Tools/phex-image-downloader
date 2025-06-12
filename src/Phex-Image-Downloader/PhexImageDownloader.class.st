@@ -133,11 +133,11 @@ PhexImageDownloader >> handleRequest: aRequest [
 	].
 
 	fileName := (self actualFilenameFor: request uri) 
-		ifNil: [ ^ ZnResponse notFound: request uri ]
+		ifNil: [ ^ ZnResponse notFound: aRequest uri ]
 		ifNotNil: [ :f | f asFileReference basename ].
 
 	(self isDownloaded: fileName) ifTrue: [ 
-		^ ZnResponse notFound: request uri
+		^ ZnResponse notFound: aRequest uri
 	].
 	
 	response := super handleRequest: request.
